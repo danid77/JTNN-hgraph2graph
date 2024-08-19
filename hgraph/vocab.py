@@ -2,7 +2,7 @@ import rdkit
 import rdkit.Chem as Chem
 import copy
 import torch
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class Vocab(object):
 
     def __init__(self, smiles_list):
@@ -35,12 +35,20 @@ class PairVocab(object):
             idx = self.vmap[(h,s)]
             self.mask[hid, idx] = 1000.0
 
-        if cuda: self.mask = self.mask.cuda()
+        # if cuda: self.mask = self.mask.cuda()
+        if cuda: self.mask = self.mask.to(device)
         self.mask = self.mask - 1000.0
             
     def __getitem__(self, x):
         assert type(x) is tuple
         return self.hmap[x[0]], self.vmap[x]
+    
+    # def get(self, x, default):
+    def get(self, x,  default=(0, 0)):
+        try:
+            return self.__getitem__(x)
+        except KeyError:
+            return default
 
     def get_smiles(self, idx):
         return self.hvocab[idx]
@@ -56,6 +64,10 @@ class PairVocab(object):
 
     def get_inter_size(self, icls_idx):
         return self.inter_size[icls_idx]
+    
+    def keys(self):
+        return list(self.vmap.keys())
+
 
 COMMON_ATOMS = [('B', 0), ('B', -1), ('Br', 0), ('Br', -1), ('Br', 2), ('C', 0), ('C', 1), ('C', -1), ('Cl', 0), ('Cl', 1), ('Cl', -1), ('Cl', 2), ('Cl', 3), ('F', 0), ('F', 1), ('F', -1), ('I', -1), ('I', 0), ('I', 1), ('I', 2), ('I', 3), ('N', 0), ('N', 1), ('N', -1), ('O', 0), ('O', 1), ('O', -1), ('P', 0), ('P', 1), ('P', -1), ('S', 0), ('S', 1), ('S', -1), ('Se', 0), ('Se', 1), ('Se', -1), ('Si', 0), ('Si', -1)]
 common_atom_vocab = Vocab(COMMON_ATOMS)

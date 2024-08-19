@@ -6,13 +6,13 @@ from hgraph.mol_graph import MolGraph
 from hgraph.encoder import HierMPNEncoder
 from hgraph.decoder import HierMPNDecoder
 from hgraph.nnutils import *
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def make_cuda(tensors):
     tree_tensors, graph_tensors = tensors
     make_tensor = lambda x: x if type(x) is torch.Tensor else torch.tensor(x)
-    tree_tensors = [make_tensor(x).cuda().long() for x in tree_tensors[:-1]] + [tree_tensors[-1]]
-    graph_tensors = [make_tensor(x).cuda().long() for x in graph_tensors[:-1]] + [graph_tensors[-1]]
+    tree_tensors = [make_tensor(x).to(device).long() for x in tree_tensors[:-1]] + [tree_tensors[-1]]
+    graph_tensors = [make_tensor(x).to(device).long() for x in graph_tensors[:-1]] + [graph_tensors[-1]]
     return tree_tensors, graph_tensors
 
 
@@ -33,12 +33,12 @@ class HierVAE(nn.Module):
         z_mean = W_mean(z_vecs)
         z_log_var = -torch.abs( W_var(z_vecs) )
         kl_loss = -0.5 * torch.sum(1.0 + z_log_var - z_mean * z_mean - torch.exp(z_log_var)) / batch_size
-        epsilon = torch.randn_like(z_mean).cuda()
+        epsilon = torch.randn_like(z_mean).to(device)
         z_vecs = z_mean + torch.exp(z_log_var / 2) * epsilon if perturb else z_mean
         return z_vecs, kl_loss
 
     def sample(self, batch_size, greedy):
-        root_vecs = torch.randn(batch_size, self.latent_size).cuda()
+        root_vecs = torch.randn(batch_size, self.latent_size).to(device)
         return self.decoder.decode((root_vecs, root_vecs, root_vecs), greedy=greedy, max_decode_step=150)
 
     def reconstruct(self, batch):
@@ -96,8 +96,8 @@ class HierVGNN(nn.Module):
             graph_vecs = torch.cat([graph_vecs] * repeat + [graph_vecs[:modulo]], dim=0)
         
         batch_size = len(root_vecs)
-        z_tree = torch.randn(batch_size, 1, self.latent_size).expand(-1, tree_vecs.size(1), -1).cuda()
-        z_graph = torch.randn(batch_size, 1, self.latent_size).expand(-1, graph_vecs.size(1), -1).cuda()
+        z_tree = torch.randn(batch_size, 1, self.latent_size).expand(-1, tree_vecs.size(1), -1).to(device)
+        z_graph = torch.randn(batch_size, 1, self.latent_size).expand(-1, graph_vecs.size(1), -1).to(device)
         z_tree_vecs = self.W_tree( torch.cat([tree_vecs, z_tree], dim=-1) )
         z_graph_vecs = self.W_graph( torch.cat([graph_vecs, z_graph], dim=-1) )
         return self.decoder.decode( (root_vecs, z_tree_vecs, z_graph_vecs), greedy=greedy)
@@ -107,7 +107,7 @@ class HierVGNN(nn.Module):
         z_mean = W_mean(z_vecs)
         z_log_var = -torch.abs( W_var(z_vecs) )
         kl_loss = -0.5 * torch.sum(1.0 + z_log_var - z_mean * z_mean - torch.exp(z_log_var)) / batch_size
-        epsilon = torch.randn_like(z_mean).cuda()
+        epsilon = torch.randn_like(z_mean).to(device)
         z_vecs = z_mean + torch.exp(z_log_var / 2) * epsilon
         return z_vecs, kl_loss
 
@@ -157,8 +157,8 @@ class HierCondVGNN(HierVGNN):
             tree_vecs = torch.cat([tree_vecs] * repeat + [tree_vecs[:modulo]], dim=0)
             graph_vecs = torch.cat([graph_vecs] * repeat + [graph_vecs[:modulo]], dim=0)
 
-        z_tree = torch.randn(num_decode, 1, self.latent_size).expand(-1, tree_vecs.size(1), -1).cuda()
-        z_graph = torch.randn(num_decode, 1, self.latent_size).expand(-1, graph_vecs.size(1), -1).cuda()
+        z_tree = torch.randn(num_decode, 1, self.latent_size).expand(-1, tree_vecs.size(1), -1).to(device)
+        z_graph = torch.randn(num_decode, 1, self.latent_size).expand(-1, graph_vecs.size(1), -1).to(device)
         z_tree_vecs = self.W_tree( torch.cat([tree_vecs, z_tree, tree_cond], dim=-1) )
         z_graph_vecs = self.W_graph( torch.cat([graph_vecs, z_graph, graph_cond], dim=-1) )
         return self.decoder.decode( (root_vecs, z_tree_vecs, z_graph_vecs) )
@@ -166,7 +166,7 @@ class HierCondVGNN(HierVGNN):
     def forward(self, x_graphs, x_tensors, y_graphs, y_tensors, y_orders, cond, beta):
         x_tensors = make_cuda(x_tensors)
         y_tensors = make_cuda(y_tensors)
-        cond = torch.tensor(cond).float().cuda()
+        cond = torch.tensor(cond).float().to(device)
 
         x_root_vecs, x_tree_vecs, x_graph_vecs = self.encode(x_tensors)
         _, y_tree_vecs, y_graph_vecs = self.encode(y_tensors)

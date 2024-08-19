@@ -6,6 +6,9 @@ from hgraph.nnutils import *
 from hgraph.mol_graph import MolGraph
 from hgraph.rnn import GRU, LSTM
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 class MPNEncoder(nn.Module):
 
     def __init__(self, rnn_type, input_size, node_fdim, hidden_size, depth, dropout):
@@ -67,10 +70,10 @@ class HierMPNEncoder(nn.Module):
                 nn.Dropout(dropout)
         )
 
-        self.E_a = torch.eye(atom_size).cuda()
-        self.E_b = torch.eye( len(MolGraph.BOND_LIST) ).cuda()
-        self.E_apos = torch.eye( MolGraph.MAX_POS ).cuda()
-        self.E_pos = torch.eye( MolGraph.MAX_POS ).cuda()
+        self.E_a = torch.eye(atom_size).to(device)
+        self.E_b = torch.eye( len(MolGraph.BOND_LIST) ).to(device)
+        self.E_apos = torch.eye( MolGraph.MAX_POS ).to(device)
+        self.E_pos = torch.eye( MolGraph.MAX_POS ).to(device)
 
         self.W_root = nn.Sequential( 
                 nn.Linear(hidden_size * 2, hidden_size), 

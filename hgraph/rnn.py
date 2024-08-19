@@ -62,6 +62,9 @@ class LSTM(nn.Module):
 
     def __init__(self, input_size, hidden_size, depth):
         super(LSTM, self).__init__()
+        
+        # combined_size = input_size + hidden_size  # input_size + h_sum_nei의 크기
+        
         self.hidden_size = hidden_size
         self.input_size = input_size
         self.depth = depth
@@ -83,8 +86,24 @@ class LSTM(nn.Module):
         return h[0]
 
     def LSTM(self, x, h_nei, c_nei):
+        # print("x shape:", x.shape)  # [1821, 62]
+        # print("h_nei shape:", h_nei.shape)  # [1821, 4, 250]
+        # h_sum_nei = h_nei.sum(dim=1)
+        # print("h_sum_nei shape:", h_sum_nei.shape)  # [1821, 250]
+        
+        # combined = torch.cat([x, h_sum_nei], dim=-1)
+        # print("combined shape:", combined.shape)  # [1821, 312] expected
+        
+        # i = self.W_i(combined)
+        # print("i shape:", i.shape)
+        
+        # torch.cuda.synchronize()
         h_sum_nei = h_nei.sum(dim=1)
         x_expand = x.unsqueeze(1).expand(-1, h_nei.size(1), -1)
+        test = torch.cat([x, h_sum_nei], dim=-1) # test
+        # print(test.shape)
+        # print(test.dtype)
+
         i = self.W_i( torch.cat([x, h_sum_nei], dim=-1) )
         o = self.W_o( torch.cat([x, h_sum_nei], dim=-1) )
         f = self.W_f( torch.cat([x_expand, h_nei], dim=-1) )

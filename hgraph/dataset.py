@@ -3,10 +3,10 @@ from torch.utils.data import Dataset
 from rdkit import Chem
 import os, random, gc
 import pickle
-
+from random import sample
 from hgraph.chemutils import get_leaves
 from hgraph.mol_graph import MolGraph
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class MoleculeDataset(Dataset):
 
@@ -82,7 +82,35 @@ class MolPairDataset(Dataset):
         y = MolGraph.tensorize(y, self.vocab, self.avocab)
         return x + y
 
+# 매 epoch마다 10000 개씩 random sampling 해서 데이터를 전달
+class DataSampling(object):
+    
+    def __init__(self, data_folder, batch_size, shuffle=True):
+        self.data_folder = data_folder
+        self.data_files = [os.path.join(data_folder, fn) for fn in os.listdir(data_folder)]
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        print('init!!!!')
+        
 
+    def __len__(self):
+        return len(self.data_files) * 1000
+    
+    def lend_data(self):
+        all_batches = []  # 모든 배치를 저장할 리스트를 초기화합니다.
+        for fn in self.data_files:
+            fn = os.path.join(self.data_folder, fn)
+            with open(fn, 'rb') as f:
+                batches = pickle.load(f)
+            if self.shuffle:
+                random.shuffle(batches)  # 데이터를 배치 전에 섞습니다.
+            all_batches.extend(batches)  # 배치를 all_batches에 추가합니다.
+            del batches
+            gc.collect()
+        return all_batches
+        
+            
+# 원래 코드
 class DataFolder(object):
 
     def __init__(self, data_folder, batch_size, shuffle=True):
@@ -106,4 +134,4 @@ class DataFolder(object):
 
             del batches
             gc.collect()
-
+            

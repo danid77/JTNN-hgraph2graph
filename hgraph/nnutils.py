@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def index_select_ND(source, dim, index):
     index_size = index.size()
     suffix_dim = source.size()[1:]
@@ -48,16 +51,24 @@ def zip_tensors(tup_list):
     tup_list = zip(*tup_list)
     for a in tup_list:
         if type(a[0]) is int: 
-            res.append( torch.LongTensor(a).cuda() )
+            res.append( torch.LongTensor(a).to(device) )
         else:
             res.append( torch.stack(a, dim=0) )
     return res
 
+# def index_scatter(sub_data, all_data, index):
+#     d0, d1 = all_data.size()
+#     buf = torch.zeros_like(all_data).scatter_(0, index.repeat(d1, 1).t(), sub_data)
+#     mask = torch.ones(d0, device=all_data.device).scatter_(0, index, 0)
+#     return all_data * mask.unsqueeze(-1) + buf
+
+# amd 적용 버전
 def index_scatter(sub_data, all_data, index):
-    d0, d1 = all_data.size()
-    buf = torch.zeros_like(all_data).scatter_(0, index.repeat(d1, 1).t(), sub_data)
-    mask = torch.ones(d0, device=all_data.device).scatter_(0, index, 0)
-    return all_data * mask.unsqueeze(-1) + buf
+    # Create a buffer with the same dtype as sub_data
+    buf = torch.zeros_like(all_data, dtype=sub_data.dtype)
+    buf = buf.scatter_(0, index.repeat(sub_data.size(1), 1).t(), sub_data)
+    return buf
+
 
 def hier_topk(cls_scores, icls_scores, vocab, topk):
     batch_size = len(cls_scores)

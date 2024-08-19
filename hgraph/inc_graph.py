@@ -5,6 +5,7 @@ from hgraph.mol_graph import MolGraph
 from hgraph.chemutils import *
 from collections import defaultdict
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class IncBase(object):
 
     def __init__(self, batch_size, node_fdim, edge_fdim, max_nodes=100, max_edges=200, max_nb=12):
@@ -13,7 +14,7 @@ class IncBase(object):
         self.graph.add_node(0) #make sure node is 1 index
         self.edge_dict = {None : 0} #make sure edge is 1 index
 
-        self.fnode = torch.zeros(max_nodes * batch_size, node_fdim).long().cuda()
+        self.fnode = torch.zeros(max_nodes * batch_size, node_fdim).long().to(device)
         self.fmess = self.fnode.new_zeros(max_edges * batch_size, edge_fdim)
         self.agraph = self.fnode.new_zeros(max_edges * batch_size, max_nb)
         self.bgraph = self.fnode.new_zeros(max_edges * batch_size, max_nb)
@@ -197,7 +198,7 @@ class IncGraph(IncBase):
         f = torch.zeros(self.avocab.size())
         symbol, charge = atom.GetSymbol(), atom.GetFormalCharge()
         f[ self.avocab[(symbol,charge)] ] = 1
-        return f.cuda()
+        return f.to(device)
 
     def get_mess_feature(self, atom, bond_type, nth_child):
         f1 = torch.zeros(self.avocab.size())
@@ -207,7 +208,7 @@ class IncGraph(IncBase):
         f1[ self.avocab[(symbol,charge)] ] = 1
         f2[ MolGraph.BOND_LIST.index(bond_type) ] = 1
         f3[ nth_child ] = 1
-        return torch.cat( [f1,f2,f3], dim=-1 ).cuda()
+        return torch.cat( [f1,f2,f3], dim=-1 ).to(device)
 
     def get_assm_cands(self, cluster, used, smiles):
         emol = get_mol(smiles)

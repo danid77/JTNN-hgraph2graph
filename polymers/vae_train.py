@@ -11,6 +11,8 @@ import argparse
 from poly_hgraph import *
 import rdkit
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 lg = rdkit.RDLogger.logger() 
 lg.setLevel(rdkit.RDLogger.CRITICAL)
 
@@ -48,7 +50,7 @@ vocab = [x.strip("\r\n ").split() for x in open(args.vocab)]
 MolGraph.load_fragments([x[0] for x in vocab if eval(x[-1])])
 args.vocab = PairVocab([(x,y) for x,y,_ in vocab])
 
-model = HierVAE(args).cuda()
+model = HierVAE(args).to(device)
 
 for param in model.parameters():
     if param.dim() == 1:
